@@ -7,12 +7,32 @@ type StressCircleProps = {
 };
 
 const StressCircle: React.FC<StressCircleProps> = ({ value }) => {
+  type HRVConfig = {
+    colour: string;
+    label: string;
+    };
+
+    const HRV_CONFIG: Record<number, HRVConfig> = {
+      0: { colour: "#22C55E", label: "ผ่อนคลาย" },
+      1: { colour: "#14B8A6", label: "ปกติ" },
+      2: { colour: "#F59E0B", label: "เริ่มเครียด" },
+      3: { colour: "#EF4444", label: "เครียดสูง" },
+    };
+    const getHRVLevel = (hrv: number) => {
+      if (hrv > 70) return 0;
+      if (hrv > 40) return 1;
+      if (hrv > 20) return 2;
+      return 3;
+    };
   const radius = 90;
   const strokeWidth = 16;
   const circumference = 2 * Math.PI * radius;
 
   const progress = value / 100;
   const strokeDashoffset = circumference * (1 - progress);
+
+  const level = getHRVLevel(value);
+  const config = HRV_CONFIG[level];
 
   return (
     <View style={styles.container}>
@@ -27,7 +47,7 @@ const StressCircle: React.FC<StressCircleProps> = ({ value }) => {
         />
 
         <Circle
-          stroke="#FFC300"
+          stroke={config.colour}
           fill="none"
           cx="110"
           cy="110"
@@ -42,8 +62,10 @@ const StressCircle: React.FC<StressCircleProps> = ({ value }) => {
       </Svg>
 
       <View style={styles.textContainer}>
-        <Text style={styles.number}>{value}</Text>
-        <Text style={styles.alert}>Alert</Text>
+        <Text style={[styles.number, { color: config.colour }]}>
+          {value}
+        </Text>
+        <Text style={styles.alert}>{config.label}</Text>
       </View>
     </View>
   );

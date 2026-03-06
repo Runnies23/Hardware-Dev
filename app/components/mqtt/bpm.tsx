@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import mqtt from "mqtt";
 
-export default function useMQTTStress() {
+export default function useMQTTBpm() {
   const [stress, setStress] = useState<number>(0);
 
   useEffect(() => {
@@ -14,7 +14,7 @@ export default function useMQTTStress() {
     client.on("connect", () => {
       console.log("MQTT Connected");
 
-      client.subscribe("b6810503731/hrv", (err) => {
+      client.subscribe("b6810503731/bpm", (err) => {
         if (!err) {
           console.log("Subscribed to stress topic");
         }
@@ -22,7 +22,7 @@ export default function useMQTTStress() {
     });
 
     client.on("message", (topic, message) => {
-      if (topic === "b6810503731/hrv") {
+      if (topic === "b6810503731/bpm") {
         const value = parseInt(message.toString(),10);
         setStress(value);
       }
