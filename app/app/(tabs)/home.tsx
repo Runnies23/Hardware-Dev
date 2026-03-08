@@ -7,7 +7,7 @@ import InfoCard from '@/components/InfoCard';
 import useMQTTBpm from '@/components/mqtt/bpm';
 import useMQTTStress from '@/components/mqtt/stress';
 import useMQTTStress_level from '@/components/mqtt/level';
-// import useMQTTAlert from '@/components/mqtt/sound';
+import useMQTTAlert from '@/components/mqtt/sound';
 
 export default function HomeScreen() {
 
@@ -53,7 +53,7 @@ export default function HomeScreen() {
   const bpmconfig = BPMConfig[bpmLevel];;
   // const clientRef = useRef(null);
   // const sound_mp3_list = []
-  // useMQTTAlert();
+  useMQTTAlert();
 
   return (
     <View style={styles.container}>

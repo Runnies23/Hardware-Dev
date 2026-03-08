@@ -1,243 +1,186 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <Wire.h>
-#include <math.h>
-
-#include "MAX30105.h"
-#include "heartRate.h"
 #include "config.h"
-
-// MQTT Topics
-#define TOPIC_BPM    TOPIC_PREFIX "/bpm"
-#define TOPIC_HRV    TOPIC_PREFIX "/hrv"
-#define TOPIC_STRESS TOPIC_PREFIX "/stress"
-
-// Finger detection threshold
-#define FINGER_THRESHOLD 50000
-
-// HRV buffer
-#define MAX_BEATS 30
+#define TOPIC_LIGHT  TOPIC_PREFIX "/light" //light stage
+#define TOPIC_HRV  TOPIC_PREFIX "/hrv" //hrv value
+#define TOPIC_BPM  TOPIC_PREFIX "/bpm" //bpm value 
+#define TOPIC_STRESS TOPIC_PREFIX "/stress" //stress stage
 
 WiFiClient wifiClient;
-PubSubClient mqtt(wifiClient);
+PubSubClient mqtt(MQTT_BROKER, 1883, wifiClient);
+uint32_t last_publish;
 
+// sensor lib
+#include <Wire.h>
+#include "MAX30105.h"
+#include "heartRate.h"
 MAX30105 particleSensor;
-
-// beat detection
+const byte RATE_SIZE = 4;
+byte rates[RATE_SIZE];
+byte rateSpot = 0;
 long lastBeat = 0;
 float beatsPerMinute;
 int beatAvg;
+int peak_ir = 0;
 
-// HRV
+
+const int fingerThreshold = 50000; // Finger detection threshold
+const int beatThreshold = 2000; // Beat detection threshold
+const int peakThreshold = 1000000;     // detect heartbeat peak
+
+// HRV storage
+const int MAX_BEATS = 30;
 int ibiBuffer[MAX_BEATS];
 int beatCount = 0;
-
-// timing
-unsigned long collectionStart = 0;
-bool collecting = false;
+unsigned long lastBeatTime = 0;
+int prevSignal = 0;
 
 
-// ---------------- WIFI ----------------
 void connect_wifi() {
-
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-
-  Serial.print("Connecting WiFi");
-
+  printf("WiFi MAC address is %s\n", WiFi.macAddress().c_str());
+  printf("Connecting to WiFi %s.\n", WIFI_SSID);
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
+    printf(".");
+    fflush(stdout);
     delay(500);
   }
-
-  Serial.println();
-  Serial.println("WiFi Connected");
-}
-
-
-// ---------------- MQTT ----------------
-void mqtt_callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message received: ");
-  Serial.println(topic);
+  printf("\nWiFi connected.\n");
 }
 
 void connect_mqtt() {
-
-  mqtt.setServer(MQTT_BROKER, 1883);
-  mqtt.setCallback(mqtt_callback);
-
-  while (!mqtt.connected()) {
-
-    Serial.print("Connecting MQTT...");
-
-    if (mqtt.connect("esp32_hrv", MQTT_USER, MQTT_PASS)) {
-      Serial.println("connected");
-    } else {
-
-      Serial.print("failed rc=");
-      Serial.println(mqtt.state());
-      delay(2000);
-    }
+  printf("Connecting to MQTT broker at %s.\n", MQTT_BROKER);
+  if (!mqtt.connect("", MQTT_USER, MQTT_PASS)) {
+    printf("Failed to connect to MQTT broker.\n");
+    for (;;) {} // wait here forever
   }
+  mqtt.setCallback(mqtt_callback);
+  mqtt.subscribe(TOPIC_LIGHT);
+  mqtt.subscribe(TOPIC_HRV);
+  printf("MQTT broker connected.\n");
 }
 
-
-// ---------------- SENSOR ----------------
-bool fingerDetected(long ir) {
-  return ir > FINGER_THRESHOLD;
+// ---------- Finger Detection ----------
+bool fingerDetected(int ir) {
+  return ir > fingerThreshold;
 }
 
+// ---------- Simple Moving Average Filter ----------
+int smoothSignal(int signal) {
+  static int buffer[4];
+  static int index = 0;
+  buffer[index] = signal;
+  index = (index + 1) % 4;
+  int sum = 0;
+  for (int i = 0; i < 4; i++)
+    sum += buffer[i];
+  return sum / 4;
+}
 
-// ---------------- BPM ----------------
+// ---------- Peak Detection from IR ----------
+bool detectPeak(int ir) {
+  if (ir > peakThreshold && prevIR <= peakThreshold) {
+    prevIR = ir;
+    return true;
+  }
+  prevIR = ir;
+  return false;
+}
+
+// ---------- BPM ----------
 float computeBPM() {
-
   if (beatCount < 2) return 0;
-
   float sum = 0;
-
   for (int i = 0; i < beatCount; i++)
     sum += ibiBuffer[i];
-
   float avgIBI = sum / beatCount;
-
   return 60000.0 / avgIBI;
 }
 
-
-// ---------------- HRV (RMSSD) ----------------
+// ---------- HRV (RMSSD) ----------
 float computeHRV() {
-
   if (beatCount < 3) return 0;
-
   float sum = 0;
-
   for (int i = 1; i < beatCount; i++) {
-
     float diff = ibiBuffer[i] - ibiBuffer[i - 1];
     sum += diff * diff;
   }
-
   return sqrt(sum / (beatCount - 1));
 }
 
-
-// ---------------- Stress ----------------
+// ---------- Stress Estimation ----------
 int computeStress(float rmssd) {
-
-  if (rmssd > 50) return 0;      // relaxed
-  else if (rmssd > 30) return 1; // normal
-  else if (rmssd > 15) return 2; // moderate
-  else return 3;                 // high
+  if (rmssd > 50) return 0;
+  else if (rmssd > 30) return 1;
+  else if (rmssd > 15) return 2;
+  else return 3;
 }
 
-
-// ---------------- MQTT Publish ----------------
+// ---------- Publish MQTT ----------
 void publishResults(float bpm, float hrv, int stress) {
-
   char msg[20];
-
-  sprintf(msg, "%d", (int)bpm);
-  mqtt.publish(TOPIC_BPM, msg);
-
-  sprintf(msg, "%d", (int)hrv);
-  mqtt.publish(TOPIC_HRV, msg);
-
-  sprintf(msg, "%d", stress);
-  mqtt.publish(TOPIC_STRESS, msg);
-
-  Serial.println("Published to MQTT");
+  sprintf(msg, "%.2f", (int)bpm);
+  client.publish(TOPIC_BPM, msg);
+  sprintf(msg, "%.2f", (int)hrv);
+  client.publish(TOPIC_HRV, msg);
+  sprintf(msg, "%d", (int)stress);
+  client.publish(TOPIC_STRESS, msg);
 }
 
+// ---------- Collect 10s Data ----------
+void collectData() {
+  beatCount = 0;
+  unsigned long startTime = millis();
+  while (millis() - startTime < 10000) {
+    currentIR = particleSensor.getIR();
+    filteredIR = smoothSignal(currentIR);
 
-// ---------------- SETUP ----------------
-void setup() {
+    if (detectPeak(filteredIR)) {
+      unsigned long now = millis();
+      int ibi = now - lastBeatTime;
+      if (ibi > 300 && ibi < 2000) {
+        ibiBuffer[beatCount] = ibi;
+        beatCount++;
+        if (beatCount >= MAX_BEATS)
+          break;
+      }
+      lastBeatTime = now;
+    }
+    delay(10);
+  }
+}
 
+void setup()
+{
   Serial.begin(115200);
-
-  Serial.println("Initializing sensor...");
-
-  Wire.begin(8, 9);
-
-  if (!particleSensor.begin(Wire)) {
-    Serial.println("MAX30105 not found");
+  Serial.println("Initializing...");
+  Wire.begin(8, 9);          // SDA = GPIO8, SCL = GPIO9
+  Wire.setClock(100000);     // 100kHz for stability
+  if (!particleSensor.begin(Wire))
+  {
+    Serial.println("MAX30105 was not found. Check wiring.");
     while (1);
   }
-
-  particleSensor.setup(60, 4, 2, 100, 411, 4096);
-  particleSensor.setPulseAmplitudeRed(0x1F);
+  particleSensor.setup();
+  particleSensor.setPulseAmplitudeRed(0x0A);
   particleSensor.setPulseAmplitudeGreen(0);
+  Serial.println("Place your finger on the sensor.");
 
-  Serial.println("Place finger on sensor");
-
+  //set up mqtt and wifi
   connect_wifi();
   connect_mqtt();
+  last_publish = 0;
 }
 
-
-// ---------------- LOOP ----------------
 void loop() {
-
-  // reconnect WiFi
-  if (WiFi.status() != WL_CONNECTED)
-    connect_wifi();
-
-  // reconnect MQTT
-  if (!mqtt.connected())
-    connect_mqtt();
-
-  mqtt.loop();
-
-  long ir = particleSensor.getIR();
-
-  // -------- finger detection --------
-  if (!fingerDetected(ir)) {
-
-    Serial.println("Waiting for finger...");
-    collecting = false;
-    beatCount = 0;
-    delay(500);
-    return;
-  }
-
-  // -------- beat detection --------
-  if (checkForBeat(ir)) {
-
-    long delta = millis() - lastBeat;
-    lastBeat = millis();
-
-    if (delta > 300 && delta < 2000) {
-
-      if (beatCount < MAX_BEATS) {
-
-        ibiBuffer[beatCount] = delta;
-        beatCount++;
-
-        Serial.print("Beat detected IBI=");
-        Serial.println(delta);
-      }
-    }
-  }
-
-  // -------- start collection --------
-  if (!collecting) {
-
-    collecting = true;
-    collectionStart = millis();
-    beatCount = 0;
-
-    Serial.println("Collecting HRV data...");
-  }
-
-  // -------- after 10 seconds compute --------
-  if (collecting && millis() - collectionStart > 10000) {
-
-    collecting = false;
-
+  int ir = analogRead(IR_PIN);
+  if (fingerDetected(ir)) {
+    Serial.println("Finger detected");
+    collectData();
     float bpm = computeBPM();
     float hrv = computeHRV();
     int stress = computeStress(hrv);
-
-    Serial.println("---- RESULT ----");
 
     Serial.print("BPM: ");
     Serial.println(bpm);
@@ -250,6 +193,12 @@ void loop() {
 
     publishResults(bpm, hrv, stress);
 
-    beatCount = 0;
+    delay(5000);
+  }
+  else {
+
+    Serial.println("Place finger on sensor");
+
+    delay(1000);
   }
 }

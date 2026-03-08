@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -15,6 +16,8 @@ type SoundOption = {
   subtitle: string;
 };
 
+
+
 const sounds: SoundOption[] = [
   { id: "nature", icon: "🌿", title: "เสียงธรรมชาติ", subtitle: "Take some deep breaths" },
   { id: "piano", icon: "🎹", title: "เสียงเปียโน", subtitle: "Take some deep breaths" },
@@ -27,6 +30,46 @@ export default function SettingsScreen() {
   const [volume, setVolume] = useState(65);
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const settings = await AsyncStorage.getItem("user_settings");
+
+      if (!settings) return;
+
+      const parsed = JSON.parse(settings);
+
+      if (parsed.selectedSound) setSelected(parsed.selectedSound);
+      if (parsed.volume !== undefined) setVolume(parsed.volume);
+      if (parsed.name) setName(parsed.name);
+      if (parsed.age) setAge(parsed.age);
+
+      console.log("Loaded settings:", parsed);
+    } catch (err) {
+      console.log("Load settings error:", err);
+    }
+  };
+
+  const saveSettings = async () => {
+    try {
+      const data = {
+        selectedSound: selected,
+        volume: volume,
+        name: name,
+        age: age
+      };
+
+      await AsyncStorage.setItem("user_settings", JSON.stringify(data));
+
+      console.log("Settings saved:", data);
+    } catch (e) {
+      console.log("Save error", e);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -97,7 +140,7 @@ export default function SettingsScreen() {
       </View>
 
       {/* Save Button */}
-      <TouchableOpacity style={styles.button}>
+      <TouchableOpacity style={styles.button} onPress={saveSettings}>
         <Text style={styles.buttonText}>บันทึก</Text>
       </TouchableOpacity>
     </View>
