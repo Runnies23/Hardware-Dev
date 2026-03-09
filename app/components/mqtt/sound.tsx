@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
-import mqtt from "mqtt";
+import { useRef } from "react";
 import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function useMQTTAlert() {
   const soundRef = useRef<Audio.Sound | null>(null);
+
+  /* ---------------- LOAD USER SOUND ---------------- */
 
   const loadSelectedSound = async () => {
     const settings = await AsyncStorage.getItem("user_settings");
@@ -15,8 +16,9 @@ export default function useMQTTAlert() {
     return parsed.selectedSound;
   };
 
+  /* ---------------- SOUND FILE SELECTOR ---------------- */
+
   const getSoundFile = (sound: string) => {
-    console.log(sound);
     switch (sound) {
       case "nature":
         return require("../sound/nature.mp3");
@@ -35,6 +37,8 @@ export default function useMQTTAlert() {
     }
   };
 
+  /* ---------------- PLAY SOUND ---------------- */
+
   const playSound = async () => {
     try {
       const selectedSound = await loadSelectedSound();
@@ -48,56 +52,36 @@ export default function useMQTTAlert() {
         soundRef.current = sound;
       }
 
-      await soundRef.current.replayAsync();
+      await soundRef.current.playAsync();
     } catch (err) {
       console.log("Sound play error:", err);
     }
   };
 
-  useEffect(() => {
-    const client = mqtt.connect("ws://iot.cpe.ku.ac.th:9001", {
-      username: "b6810503731",
-      password: "panparin.r@ku.th",
-      reconnectPeriod: 5000,
-    });
+  /* ---------------- STOP SOUND ---------------- */
 
-    client.on("connect", () => {
-      console.log("Alert MQTT Connected");
-
-      client.subscribe("b6810503731/light", (err) => {
-        if (!err) {
-          console.log("Subscribed to alert topic");
-        }
-      });
-    });
-
-    client.on("message", async (topic, message) => {
-      const msg = message.toString();
-
-      console.log("message:", msg);
-
-      if (topic === "b6810503731/light" && msg === "1") {
-        console.log("ALERT TRIGGERED");
-        await playSound();
-      }
-
-      if (topic === "b6810503731/light" && msg === "0") {
-        if (soundRef.current) {
-          await soundRef.current.stopAsync();
-        }
-      }
-    });
-
-    client.on("error", (err) => {
-      console.log("MQTT Error:", err);
-    });
-
-    return () => {
-      client.end();
-
+  const stopSound = async () => {
+    try {
       if (soundRef.current) {
-        soundRef.current.unloadAsync();
+        await soundRef.current.stopAsync();
       }
-    };
-  }, []);
+    } catch (err) {
+      console.log("Sound stop error:", err);
+    }
+  };
+
+  /* ---------------- ALERT CONTROLLER ---------------- */
+
+  const triggerAlert = async (stressLevel: number) => {
+
+    if (stressLevel >= 2) {
+      console.log("⚠️ High Stress Alert");
+      await playSound();
+    } else {
+      await stopSound();
+    }
+
+  };
+
+  return triggerAlert;
 }

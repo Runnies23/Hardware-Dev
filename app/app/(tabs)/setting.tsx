@@ -5,9 +5,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput
+  TextInput,
+  ScrollView
 } from "react-native";
 import Slider from "@react-native-community/slider";
+import { Picker } from "@react-native-picker/picker";
 
 type SoundOption = {
   id: string;
@@ -15,8 +17,6 @@ type SoundOption = {
   title: string;
   subtitle: string;
 };
-
-
 
 const sounds: SoundOption[] = [
   { id: "nature", icon: "🌿", title: "เสียงธรรมชาติ", subtitle: "Take some deep breaths" },
@@ -26,10 +26,14 @@ const sounds: SoundOption[] = [
 ];
 
 export default function SettingsScreen() {
+
   const [selected, setSelected] = useState("nature");
   const [volume, setVolume] = useState(65);
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
+
+  /* NEW STATE */
+  const [mockPattern, setMockPattern] = useState("pattern1");
 
   useEffect(() => {
     loadSettings();
@@ -47,6 +51,7 @@ export default function SettingsScreen() {
       if (parsed.volume !== undefined) setVolume(parsed.volume);
       if (parsed.name) setName(parsed.name);
       if (parsed.age) setAge(parsed.age);
+      if (parsed.mockPattern) setMockPattern(parsed.mockPattern);
 
       console.log("Loaded settings:", parsed);
     } catch (err) {
@@ -56,23 +61,30 @@ export default function SettingsScreen() {
 
   const saveSettings = async () => {
     try {
+
       const data = {
         selectedSound: selected,
         volume: volume,
         name: name,
-        age: age
+        age: age,
+        mockPattern: mockPattern
       };
 
       await AsyncStorage.setItem("user_settings", JSON.stringify(data));
 
       console.log("Settings saved:", data);
+
     } catch (e) {
       console.log("Save error", e);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={styles.title}>การตั้งค่า</Text>
 
       {sounds.map((sound) => {
@@ -139,11 +151,30 @@ export default function SettingsScreen() {
         />
       </View>
 
+      
+
       {/* Save Button */}
       <TouchableOpacity style={styles.button} onPress={saveSettings}>
         <Text style={styles.buttonText}>บันทึก</Text>
       </TouchableOpacity>
-    </View>
+
+
+      {/* NEW MOCK PATTERN DROPDOWN */}
+
+      <View style={styles.dropdownCard}>
+        <Text style={styles.soundTitle}>Mock Data Pattern</Text>
+
+        <Picker
+          selectedValue={mockPattern}
+          onValueChange={(value) => setMockPattern(value)}
+        >
+          <Picker.Item label="Pattern 1 (Normal)" value="pattern1" />
+          <Picker.Item label="Pattern 2 (Stress Increasing)" value="pattern2" />
+          <Picker.Item label="Pattern 3 (High Stress)" value="pattern3" />
+        </Picker>
+      </View>
+      
+    </ScrollView>
   );
 }
 
@@ -207,6 +238,13 @@ volumeCard: {
   padding: 16,
   borderRadius: 20,
   marginTop: 10
+},
+
+dropdownCard: {
+  backgroundColor: "#F2F2F2",
+  padding: 16,
+  borderRadius: 20,
+  marginTop: 50
 },
 
 volumeText: {
