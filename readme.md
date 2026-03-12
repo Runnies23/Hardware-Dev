@@ -20,7 +20,7 @@
 ## หลักการทำงาน
 ![system_design.png](./asset/system_design.png)
 
-## ตัวอย่างหน้า Dashboard ใน react native
+## ตัวอย่างหน้า Dashboard ใน React native
 ![dashboard.png](./asset/dashboard.png)
 
 
