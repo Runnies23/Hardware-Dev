@@ -20,6 +20,10 @@
 ## หลักการทำงาน
 ![system_design.png](./asset/system_design.png)
 
+## ตัวอย่างหน้า Dashboard ใน react native
+![dashboard.png](./asset/dashboard.png)
+
+
 ## รายการอุปกรณ์ที่ใช้
 ### Board 1 : ส่วนตรวจวัดชีพจร
 - ไมโครคอนโทรลเลอร์ ESP32
