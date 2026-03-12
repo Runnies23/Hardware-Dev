@@ -63,8 +63,10 @@ npm start ios
 1. เปิด sketch ใน Arduino IDE
 
 2. ติดตั้ง library ที่จำเป็นสำหรับแต่ละบอร์ด
-Board 1 library : [sparkfun](https://github.com/sparkfun/SparkFun_MAX3010x_Sensor_Library)
-Board 2 library : [FastLED](https://github.com/FastLED/FastLED)
+
+- Board 1 library : [sparkfun](https://github.com/sparkfun/SparkFun_MAX3010x_Sensor_Library)
+
+- Board 2 library : [FastLED](https://github.com/FastLED/FastLED)
 
 3. แก้ไขไฟล์การตั้งค่า
 ```
