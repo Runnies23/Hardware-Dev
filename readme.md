@@ -22,7 +22,7 @@
 ## รายการอุปกรณ์ที่ใช้
 ### Board 1 : ส่วนตรวจวัดชีพจร
 - ไมโครคอนโทรลเลอร์ ESP32
-- เซนเซอร์ PPG - [MAX30102k](https://www.arduitronics.com/product/6381/max30102-high-sensitivity-pulse-oximeter-and-heart-rate-sensor-for-wearable-health-compatible-with-a-3)
+- เซนเซอร์ PPG - [MAX30102](https://www.cybertice.com/product/2745/max30102-%E0%B9%80%E0%B8%8B%E0%B9%87%E0%B8%99%E0%B9%80%E0%B8%8B%E0%B8%AD%E0%B8%A3%E0%B9%8C%E0%B8%A7%E0%B8%B1%E0%B8%94%E0%B8%AD%E0%B8%AD%E0%B8%81%E0%B8%8B%E0%B8%B4%E0%B9%80%E0%B8%88%E0%B8%99%E0%B9%83%E0%B8%99%E0%B9%80%E0%B8%A5%E0%B8%B7%E0%B8%AD%E0%B8%94%E0%B9%81%E0%B8%A5%E0%B8%B0%E0%B8%AD%E0%B8%B1%E0%B8%95%E0%B8%A3%E0%B8%B2%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B9%80%E0%B8%95%E0%B9%89%E0%B8%99%E0%B8%82%E0%B8%AD%E0%B8%87%E0%B8%AB%E0%B8%B1%E0%B8%A7%E0%B9%83%E0%B8%88-%E0%B8%8A%E0%B8%B5%E0%B8%9E%E0%B8%88%E0%B8%A3-%E0%B8%99%E0%B8%B4%E0%B9%89%E0%B8%A7%E0%B8%A1%E0%B8%B7%E0%B8%AD-blood-oxygen-concentration)
 
 ### Board 2 : ส่วนไฟบำบัด
 - ไมโครคอนโทรลเลอร์ ESP32
@@ -36,8 +36,7 @@ repository
 ├── asset
 │   └── designsystem.png
 │
-├── app
-│   └── main.py
+├── app //react native dashboard dir
 │
 └── src
     ├── board1
@@ -48,6 +47,7 @@ repository
         ├── board2.ino
         └── config.h
 ```
+
 
 ## Set up React Native 
 ```bash
@@ -62,12 +62,16 @@ npm start ios
 
 1. เปิด sketch ใน Arduino IDE
 
-2. แก้ไขไฟล์การตั้งค่า
+2. ติดตั้ง library ที่จำเป็นสำหรับแต่ละบอร์ด
+Board 1 library : [sparkfun](https://github.com/sparkfun/SparkFun_MAX3010x_Sensor_Library)
+Board 2 library : [FastLED](https://github.com/FastLED/FastLED)
+
+3. แก้ไขไฟล์การตั้งค่า
 ```
 config.h
 ```
 
-3. ทำการ อัปโหลด (Upload) โค้ด ลงบอร์ด ESP32 เพื่อเริ่มใช้งานระบบ
+4. ทำการ อัปโหลด (Upload) โค้ด ลงบอร์ด ESP32 เพื่อเริ่มใช้งานระบบ
 
 
 --- 
@@ -76,5 +80,5 @@ config.h
 คณะวิศวกรรมศาสตร์ มหาวิทยาลัยเกษตรศาสตร์
 - 6810503404 นายกิตติศักดิ์ สีเมฆ
 - 6810503536 นายณัฐพงษ์ ภักดีวิบูลย์
-- 6810503734 นายปารย์ปรินทร์ รุธิรโก
+- 6810503731 นายปารย์ปรินทร์ รุธิรโก
 - 6810503862 นางสาวรมย์ธีรา ทองถิ่น
